@@ -1,6 +1,9 @@
 package test;
 
+import org.trahim.dbserver.DB;
+import org.trahim.dbserver.DBServer;
 import org.trahim.row.FileHandler;
+import org.trahim.row.Index;
 import org.trahim.row.Person;
 
 import java.io.FileNotFoundException;
@@ -10,18 +13,25 @@ public class Test {
     public static void main(String[] args) throws IOException {
 
         try {
-            FileHandler fileHandler = new FileHandler("test2.db");
-            fileHandler.add("1", 2, "3", "4", "5");
-            fileHandler.close();
 
-            fileHandler = new FileHandler("test.db");
-            Person person = fileHandler.readRow(0);
-            fileHandler.close();
+            final String dbFile = "DbServer.db";
+            DB db = new DBServer(dbFile);
+            db.add("1kmnmn", 2, "3", "4", "5");
+            db.close();
 
+            db = new DBServer(dbFile);
+            Person person = db.read(0);
+
+
+            System.out.println("Total number of rows in database: " + Index.getInstance().getTotalNumberOfRows());
             System.out.println(person);
 
+            System.out.println(Index.getInstance().getTotalNumberOfRows());
+            db.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+
     }
 }

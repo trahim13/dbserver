@@ -21,10 +21,11 @@ public class FileHandler {
                        String description
     ) throws IOException {
 
-        this.dbFile.seek(this.dbFile.length());
+        long currentPositionToInsert = this.dbFile.length();
+        this.dbFile.seek(currentPositionToInsert);
 
         int length =
-                4 + name.length() +
+                        4 + name.length() +
                         4 +
                         4 + address.length() +
                         4 + carPlateNumber.length() +
@@ -32,13 +33,13 @@ public class FileHandler {
 
 
         this.dbFile.writeBoolean(false);
-        this.dbFile.write(length);
+        this.dbFile.writeInt(length);
 
 
         this.dbFile.writeInt(name.length());
         this.dbFile.write(name.getBytes());
 
-        this.dbFile.write(age);
+        this.dbFile.writeInt(age);
 
         this.dbFile.writeInt(address.length());
         this.dbFile.write(address.getBytes());
@@ -49,13 +50,21 @@ public class FileHandler {
         this.dbFile.writeInt(description.length());
         this.dbFile.write(description.getBytes());
 
+        Index.getInstance().add(currentPositionToInsert);
+
         return true;
 
     }
 
 
     public Person readRow(int rowNumber) throws IOException {
-        byte [] row = this.readRowRecord(rowNumber);
+
+        long bytePosition= Index.getInstance().getBytePosition(rowNumber);
+        System.out.println(bytePosition);
+        if (bytePosition == -1) {
+            return null;
+        }
+        byte [] row = this.readRowRecord(bytePosition);
         Person person = new Person();
         DataInputStream in = new DataInputStream(new ByteArrayInputStream(row));
 
@@ -64,11 +73,14 @@ public class FileHandler {
         in.read(b);
         person.name = new String(b);
 
+
+
         person.age = in.readInt();
 
         b = new byte[in.readInt()];
         in.read(b);
         person.address = new String(b);
+
 
         b = new byte[in.readInt()];
         in.read(b);
@@ -83,19 +95,49 @@ public class FileHandler {
 
     }
 
-    public byte[] readRowRecord(int rowNumber) throws IOException {
-        this.dbFile.seek(0);
+    public byte[] readRowRecord(long bytePositionOfRow) throws IOException {
+        this.dbFile.seek(bytePositionOfRow);
 
         if (this.dbFile.readBoolean()) {
             return new byte[0];
         }
 
-        this.dbFile.seek(rowNumber + 1);
+        this.dbFile.seek(bytePositionOfRow + 1);
         int recordLength = this.dbFile.readInt();
-        this.dbFile.seek(rowNumber + 5);
+
+        this.dbFile.seek(bytePositionOfRow + 5);
         byte[] data = new byte[recordLength];
         this.dbFile.read(data);
 
         return data;
     }
+
+    public void loadAllDataToIndex() throws IOException {
+        if (this.dbFile.length() == 0) {
+            return;
+        }
+
+        long currentPos = 0;
+        long rowNumber = 0;
+
+        while (currentPos < this.dbFile.length()) {
+            this.dbFile.seek(currentPos);
+            boolean isDeleted = this.dbFile.readBoolean();
+
+            if (!isDeleted) {
+                Index.getInstance().add(currentPos);
+                rowNumber++;
+            }
+
+            currentPos += 1;
+            this.dbFile.seek(currentPos);
+            int recordLength = this.dbFile.readInt();
+            currentPos += 4;
+            currentPos += recordLength;
+        }
+
+        System.out.println(" loadAllDataToIndex() -> Total row number in Database: " + rowNumber);
+
+    }
+
 }

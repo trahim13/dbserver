@@ -1,5 +1,7 @@
 package org.trahim.row;
 
+import org.trahim.exceptions.DuplicateNameException;
+
 import java.io.*;
 
 public class FileHandler {
@@ -19,8 +21,11 @@ public class FileHandler {
                        String address,
                        String carPlateNumber,
                        String description
-    ) throws IOException {
+    ) throws IOException, DuplicateNameException {
 
+        if (Index.getInstance().hasNameInIndex(name)) {
+            throw new DuplicateNameException(String.format("Name '%s' already exists!", name));
+        }
         long currentPositionToInsert = this.dbFile.length();
         this.dbFile.seek(currentPositionToInsert);
 
@@ -51,28 +56,51 @@ public class FileHandler {
         this.dbFile.write(description.getBytes());
 
         Index.getInstance().add(currentPositionToInsert);
+        Index.getInstance().addNameToIndex(name, Index.getInstance().getTotalNumberOfRows()-1);
 
         return true;
 
     }
 
 
-    public Person readRow(int rowNumber) throws IOException {
+    public Person readRow(long rowNumber) throws IOException {
 
         long bytePosition= Index.getInstance().getBytePosition(rowNumber);
         if (bytePosition == -1) {
             return null;
         }
         byte [] row = this.readRowRecord(bytePosition);
-        Person person = new Person();
+
         DataInputStream in = new DataInputStream(new ByteArrayInputStream(row));
+
+        return readFromByteStream(in);
+
+    }
+
+    public byte[] readRowRecord(long bytePositionOfRow) throws IOException {
+        this.dbFile.seek(bytePositionOfRow);
+
+        if (this.dbFile.readBoolean()) {
+            return new byte[0];
+        }
+
+        this.dbFile.seek(bytePositionOfRow + 1);
+        int recordLength = this.dbFile.readInt();
+
+        this.dbFile.seek(bytePositionOfRow + 5);
+        byte[] data = new byte[recordLength];
+        this.dbFile.read(data);
+
+        return data;
+    }
+
+    private Person readFromByteStream(final DataInputStream in) throws IOException {
+        Person person = new Person();
 
         int nameLength = in.readInt();
         byte[] b = new byte[nameLength];
         in.read(b);
         person.name = new String(b);
-
-
 
         person.age = in.readInt();
 
@@ -92,23 +120,6 @@ public class FileHandler {
 
         return person;
 
-    }
-
-    public byte[] readRowRecord(long bytePositionOfRow) throws IOException {
-        this.dbFile.seek(bytePositionOfRow);
-
-        if (this.dbFile.readBoolean()) {
-            return new byte[0];
-        }
-
-        this.dbFile.seek(bytePositionOfRow + 1);
-        int recordLength = this.dbFile.readInt();
-
-        this.dbFile.seek(bytePositionOfRow + 5);
-        byte[] data = new byte[recordLength];
-        this.dbFile.read(data);
-
-        return data;
     }
 
     public void loadAllDataToIndex() throws IOException {
@@ -135,6 +146,16 @@ public class FileHandler {
             this.dbFile.seek(currentPos);
             int recordLength = this.dbFile.readInt();
             currentPos += 4;
+
+            this.dbFile.seek(currentPos);
+            if (!isDeleted) {
+                byte[] b = new byte[recordLength];
+                this.dbFile.read(b);
+                Person p = this.readFromByteStream(new DataInputStream(new ByteArrayInputStream(b)));
+                Index.getInstance().addNameToIndex(p.name, rowNumber);
+                rowNumber++;
+            }
+
             currentPos += recordLength;
         }
 
@@ -143,7 +164,7 @@ public class FileHandler {
 
     }
 
-    public void deleteRow(int rowNumber) throws IOException {
+    public void deleteRow(long rowNumber) throws IOException {
         long bytePositionOfRecord = Index.getInstance().getBytePosition(rowNumber);
 
         if (rowNumber == -1) {
@@ -154,6 +175,27 @@ public class FileHandler {
         this.dbFile.writeBoolean(true);
 
         Index.getInstance().remove(rowNumber);
+
+    }
+
+    public void updateRow(long rowNumber,
+                          String name,
+                          int age,
+                          String address,
+                          String carPlateNumber,
+                          String description) throws IOException, DuplicateNameException {
+        this.deleteRow(rowNumber);
+        this.add(name, age, address, carPlateNumber, description);
+    }
+
+    public void update(final String nameToModify,
+                       String name,
+                       int age,
+                       String address,
+                       String carPlateNumber,
+                       String description) throws IOException, DuplicateNameException {
+        long rowNumber = Index.getInstance().getRowNumberByName(nameToModify);
+       this.updateRow(rowNumber, name, age, address, carPlateNumber, description);
 
     }
 }

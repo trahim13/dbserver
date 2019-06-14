@@ -1,5 +1,6 @@
 package org.trahim.dbserver;
 
+import org.trahim.exceptions.DuplicateNameException;
 import org.trahim.row.FileHandler;
 import org.trahim.row.Index;
 import org.trahim.row.Person;
@@ -22,18 +23,21 @@ public final class DBServer implements DB {
 
     }
 
+
+
     @Override
-    public void add(String name,
-                    int age,
-                    String address,
-                    String carPlateNumber,
-                    String description) throws IOException {
-        this.fileHandler.add(name, age, address, carPlateNumber, description);
+    public void add(Person person) throws IOException, DuplicateNameException {
+        this.fileHandler.add(
+                person.name,
+                person.age,
+                person.address,
+                person.carPlateNumber,
+                person.description);
 
     }
 
     @Override
-    public void delete(int rowNumber) throws IOException {
+    public void delete(long rowNumber) throws IOException {
         if (rowNumber < 0) {
             throw new IOException("Row number is less then 0");
         }
@@ -43,8 +47,21 @@ public final class DBServer implements DB {
     }
 
     @Override
-    public Person read(int rowNumber) throws IOException {
+    public Person read(long rowNumber) throws IOException {
         return this.fileHandler.readRow(rowNumber);
+    }
+
+    @Override
+    public void update(long rowNumber, final Person person) throws IOException, DuplicateNameException {
+        this.fileHandler.updateRow(rowNumber,
+                person.name, person.age, person.address, person.carPlateNumber, person.description);
+
+    }
+
+    @Override
+    public void update(String name, Person person) throws IOException, DuplicateNameException {
+        this.fileHandler.update(name,
+                person.name, person.age, person.address, person.carPlateNumber, person.description);
     }
 
 }

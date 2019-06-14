@@ -7,10 +7,15 @@ public final class Index {
     private static Index index;
     //row number, byte position
     private HashMap<Long, Long> rowIndex;
+
+    //String name, rowNUmber
+    private HashMap<String, Long> nameIndex;
+
     private  long totalRowNumber = 0;
 
     private Index() {
         this.rowIndex = new HashMap<>();
+        this.nameIndex = new HashMap<>();
 
     }
 
@@ -40,8 +45,22 @@ public final class Index {
         return this.totalRowNumber;
     }
 
+
+    public void addNameToIndex(final String name, long rowIndex) {
+        this.nameIndex.put(name, rowIndex);
+    }
+
+    public boolean hasNameInIndex(final String name) {
+        return this.nameIndex.containsKey(name);
+    }
+
+    public long getRowNumberByName(final String name) {
+            return this.nameIndex.get(name);
+    }
+
     public void clear() {
         this.totalRowNumber = 0;
         this.rowIndex.clear();
+        this.nameIndex.clear();
     }
 }

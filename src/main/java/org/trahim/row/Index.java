@@ -16,7 +16,7 @@ public final class Index {
 
     public static Index getInstance() {
         if (index == null) {
-            return new Index();
+            return index = new Index();
         }
         return index;
     }
@@ -29,6 +29,7 @@ public final class Index {
     public long getBytePosition(long rowNumber) {
         return Index.getInstance().rowIndex.getOrDefault(rowNumber, -1L);
     }
+
     public void remove(long row) {
         this.rowIndex.remove(row);
         this.totalRowNumber--;

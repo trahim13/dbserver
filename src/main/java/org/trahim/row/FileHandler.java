@@ -60,7 +60,6 @@ public class FileHandler {
     public Person readRow(int rowNumber) throws IOException {
 
         long bytePosition= Index.getInstance().getBytePosition(rowNumber);
-        System.out.println(bytePosition);
         if (bytePosition == -1) {
             return null;
         }
@@ -119,6 +118,7 @@ public class FileHandler {
 
         long currentPos = 0;
         long rowNumber = 0;
+        long deletedRows = 0;
 
         while (currentPos < this.dbFile.length()) {
             this.dbFile.seek(currentPos);
@@ -127,6 +127,8 @@ public class FileHandler {
             if (!isDeleted) {
                 Index.getInstance().add(currentPos);
                 rowNumber++;
+            } else {
+                deletedRows++;
             }
 
             currentPos += 1;
@@ -136,8 +138,22 @@ public class FileHandler {
             currentPos += recordLength;
         }
 
-        System.out.println(" loadAllDataToIndex() -> Total row number in Database: " + rowNumber);
+        System.out.println("After startup: loadAllDataToIndex() -> Total row number in Database: " + rowNumber);
+        System.out.println("After startup: loadAllDataToIndex() -> Total deleted row number in DataBase: " + deletedRows);
 
     }
 
+    public void deleteRow(int rowNumber) throws IOException {
+        long bytePositionOfRecord = Index.getInstance().getBytePosition(rowNumber);
+
+        if (rowNumber == -1) {
+            throw new IOException("Row does not exists in Index");
+        }
+
+        this.dbFile.seek(bytePositionOfRecord);
+        this.dbFile.writeBoolean(true);
+
+        Index.getInstance().remove(rowNumber);
+
+    }
 }

@@ -26,7 +26,10 @@ public class Test {
             System.out.println("Total number of rows in database: " + Index.getInstance().getTotalNumberOfRows());
             System.out.println(person);
 
-            System.out.println(Index.getInstance().getTotalNumberOfRows());
+
+            db.delete(0);
+            System.out.println("Total number of rows in database: " + Index.getInstance().getTotalNumberOfRows());
+
             db.close();
         } catch (IOException e) {
             e.printStackTrace();

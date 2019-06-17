@@ -3,9 +3,10 @@ package org.trahim.dbserver;
 import org.trahim.exceptions.DuplicateNameException;
 import org.trahim.row.Person;
 
+import java.io.Closeable;
 import java.io.IOException;
 
-public interface DB {
+public interface DB extends Closeable {
     void add(Person person) throws IOException, DuplicateNameException;
 
     void delete(long rowNumber) throws IOException;

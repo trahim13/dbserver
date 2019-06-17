@@ -4,8 +4,10 @@ import org.trahim.exceptions.DuplicateNameException;
 import org.trahim.row.FileHandler;
 import org.trahim.row.Index;
 import org.trahim.row.Person;
+import org.trahim.util.DebugRowInfo;
 
 import java.io.IOException;
+import java.util.List;
 
 public final class DBServer implements DB {
 
@@ -22,7 +24,6 @@ public final class DBServer implements DB {
         this.fileHandler.close();
 
     }
-
 
 
     @Override
@@ -64,4 +65,7 @@ public final class DBServer implements DB {
                 person.name, person.age, person.address, person.carPlateNumber, person.description);
     }
 
+    public List<DebugRowInfo> listAllRowsWithDebug() throws IOException {
+        return this.fileHandler.loadAllDataFromFile();
+    }
 }

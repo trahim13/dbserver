@@ -3,42 +3,81 @@ package test;
 import org.trahim.dbserver.DB;
 import org.trahim.dbserver.DBServer;
 import org.trahim.exceptions.DuplicateNameException;
-import org.trahim.row.FileHandler;
 import org.trahim.row.Index;
 import org.trahim.row.Person;
+import org.trahim.util.DebugRowInfo;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.List;
 
 public class Test {
+    final  static String dbFile = "DbServer.db";
+
     public static void main(String[] args) throws IOException, DuplicateNameException {
 
+        new Test().performTest();
+
+
+    }
+
+    private void performTest() throws DuplicateNameException {
         try {
+            fillDB(10);
+            delete(0);
+            delete(2);
+            delete(5);
 
-            final String dbFile = "DbServer.db";
-            DB db = new DBServer(dbFile);
+            listAllRecords();
 
-            Person p0 = new Person("1kmnmn", 3, "3", "4", "5");
-
-
-            db.add(p0);
-
-            System.out.println("Total number of rows in database: " + Index.getInstance().getTotalNumberOfRows());
-
-            Person p1 = new Person("2kmnmn", 3, "3", "4", "5");
-
-
-            db.update("1kmnmn", p1);
-
-            Person updatedPerson = db.read(0);
-            System.out.println(updatedPerson);
-            System.out.println("Total number of rows in database: " + Index.getInstance().getTotalNumberOfRows());
-            db.close();
-
-        } catch (IOException e) {
+         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
 
+
+    void listAllRecords() throws IOException {
+        DBServer db = new DBServer(dbFile);
+        List<DebugRowInfo> result = db.listAllRowsWithDebug();
+        System.out.println("Total row number : " + Index.getInstance().getTotalNumberOfRows());
+        for (DebugRowInfo dri :
+                result) {
+            prittyPrintRow(dri);
+        }
+        db.close();
+
+    }
+
+    private void prittyPrintRow(DebugRowInfo dri) {
+        Person person = dri.getPerson();
+        boolean isDeleted = dri.isDeleted();
+
+        String debugChar = isDeleted ? "-":"+";
+
+        String s = String.format(" %s, name: %s, age: %d, description: %s, carPlate: %s", debugChar,
+                person.name,
+                person.age,
+                person.description,
+                person.carPlateNumber
+                );
+        System.out.println(s);
+    }
+
+    public void fillDB(int number) throws IOException, DuplicateNameException {
+
+        DB db = new DBServer(dbFile);
+        for (int i = 0; i < number; i++) {
+            Person p0 = new Person("Person " + i, 3, "3", "4", "5");
+            db.add(p0);
+
+        }
+        db.close();
+    }
+
+    public void delete(int rowNumber) throws IOException {
+
+        DB db = new DBServer(dbFile);
+        db.delete(rowNumber);
+        db.close();
 
     }
 }

@@ -71,13 +71,7 @@ public class DBBasicTests {
     @Test
     public void testDelete() throws DuplicateNameException {
         try {
-            Person p0 = new Person();
-            p0.name = "1kmnmn";
-            p0.age = 3;
-            p0.address = "3";
-            p0.carPlateNumber = "4";
-            p0.description = "5";
-
+            Person p0 = new Person("1kmnmn", 3, "4", "5", "6");
             this.db.add(p0);
             Assert.assertEquals(Index.getInstance().getTotalNumberOfRows(), 1);
             this.db.delete(0);
@@ -86,6 +80,35 @@ public class DBBasicTests {
         } catch (IOException e) {
             Assert.fail();
 
+        }
+    }
+
+    @Test
+    public void updateByName() throws IOException, DuplicateNameException {
+        try {
+            Person p0 = new Person("Test 0", 3, "4", "5", "6");
+            this.db.add(p0);
+
+            Person p1 = new Person("Test 1", 3, "4", "5", "6");
+            this.db.update("Test 0", p1);
+            Person result = this.db.read(0);
+            Assert.assertEquals("Test 1", result.name);
+        } catch (IOException e) {
+            Assert.fail();
+        }
+    }
+    @Test
+    public void updateByRowNumber() throws IOException, DuplicateNameException {
+        try {
+            Person p0 = new Person("Test 0", 3, "4", "5", "6");
+            this.db.add(p0);
+
+            Person p1 = new Person("Test 1", 3, "4", "5", "6");
+            this.db.update(0, p1);
+            Person result = this.db.read(0);
+            Assert.assertEquals("Test 1", result.name);
+        } catch (IOException e) {
+            Assert.fail();
         }
     }
 

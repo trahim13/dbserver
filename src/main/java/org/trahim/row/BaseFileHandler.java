@@ -10,14 +10,14 @@ import java.util.List;
 public class BaseFileHandler {
 
     RandomAccessFile dbFile;
-    String dbFileName = "";
+    private String dbFileName;
 
     BaseFileHandler(String dbFileName) throws FileNotFoundException {
         this.dbFileName = dbFileName;
         this.dbFile = new RandomAccessFile(dbFileName, "rw");
     }
 
-    public BaseFileHandler(final RandomAccessFile randomAccessFile, final String dbFileName) {
+    BaseFileHandler(final RandomAccessFile randomAccessFile, final String dbFileName) {
         this.dbFileName = dbFileName;
         this.dbFile = randomAccessFile;
     }

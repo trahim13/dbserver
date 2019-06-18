@@ -24,10 +24,10 @@ class Test {
     private void performTest() throws DuplicateNameException {
         try {
             fragmentDatabase();
-            listAllRecords();
-            defragmentDB();
-            System.out.println("-=After defragmentation=-");
-            listAllRecords();
+//            listAllRecords();
+//            defragmentDB();
+//            System.out.println("-=After defragmentation=-");
+//            listAllRecords();
         } catch (IOException e) {
             e.printStackTrace();
         }

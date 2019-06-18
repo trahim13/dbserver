@@ -16,7 +16,7 @@ public final class Leveinshtein {
         IntStream.range(0, rhs.length()).forEach(i-> result[0][i] = i);
 
 
-        int subst = 0;
+        int subst;
 
         for (int j = 1; j < rhs.length(); j++) {
             for (int i = 1; i < lhs.length(); i++) {

@@ -1,22 +1,22 @@
 package org.trahim.row;
 
-import java.util.HashMap;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class Index {
 
     private static Index index;
     //row number, byte position
-    private final HashMap<Long, Long> rowIndex;
+    private final ConcurrentHashMap<Long, Long> rowIndex;
 
     //String name, rowNUmber
-    private final HashMap<String, Long> nameIndex;
+    private final ConcurrentHashMap<String, Long> nameIndex;
 
     private  long totalRowNumber = 0;
 
     private Index() {
-        this.rowIndex = new HashMap<>();
-        this.nameIndex = new HashMap<>();
+        this.rowIndex = new ConcurrentHashMap<>();
+        this.nameIndex = new ConcurrentHashMap<>();
 
     }
 
@@ -27,7 +27,7 @@ public final class Index {
         return index;
     }
 
-    public void add(long bytePosition) {
+    public synchronized void add(long bytePosition) {
         this.rowIndex.put(totalRowNumber, bytePosition);
         this.totalRowNumber++;
     }
@@ -36,12 +36,12 @@ public final class Index {
         return Index.getInstance().rowIndex.getOrDefault(rowNumber, -1L);
     }
 
-    public void remove(long row) {
+    public synchronized void remove(long row) {
         this.rowIndex.remove(row);
         this.totalRowNumber--;
     }
 
-    public long getTotalNumberOfRows() {
+    public synchronized long getTotalNumberOfRows() {
 
         return this.totalRowNumber;
     }
@@ -59,7 +59,7 @@ public final class Index {
         return this.nameIndex.getOrDefault(name, -1L);
     }
 
-    public void clear() {
+    public synchronized void clear() {
         this.totalRowNumber = 0;
         this.rowIndex.clear();
         this.nameIndex.clear();

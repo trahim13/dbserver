@@ -6,11 +6,18 @@ import org.trahim.util.DebugRowInfo;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class BaseFileHandler {
 
     RandomAccessFile dbFile;
-    private String dbFileName;
+    private final String dbFileName;
+    private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+    final Lock readLock = readWriteLock.readLock();
+    final Lock writeLock = readWriteLock.writeLock();
+
 
     BaseFileHandler(String dbFileName) throws FileNotFoundException {
         this.dbFileName = dbFileName;
@@ -23,44 +30,52 @@ public class BaseFileHandler {
     }
 
     public void loadAllDataToIndex() throws IOException {
-        if (this.dbFile.length() == 0) {
-            return;
-        }
 
-        long currentPos = 0;
-        long rowNumber = 0;
-        long deletedRows = 0;
-
-        while (currentPos < this.dbFile.length()) {
-            this.dbFile.seek(currentPos);
-            boolean isDeleted = this.dbFile.readBoolean();
-
-            if (!isDeleted) {
-
-                Index.getInstance().add(currentPos);
-            } else {
-                deletedRows++;
+        readLock.lock();
+        try {
+            if (this.dbFile.length() == 0) {
+                return;
             }
 
-            currentPos += 1;
-            this.dbFile.seek(currentPos);
-            int recordLength = this.dbFile.readInt();
-            currentPos += 4;
+            long currentPos = 0;
+            long rowNumber = 0;
+            long deletedRows = 0;
 
-            this.dbFile.seek(currentPos);
-            if (!isDeleted) {
-                byte[] b = new byte[recordLength];
-                this.dbFile.read(b);
-                Person p = this.readFromByteStream(new DataInputStream(new ByteArrayInputStream(b)));
-                Index.getInstance().addNameToIndex(p.name, rowNumber);
-                rowNumber++;
+            synchronized (this) {
+                while (currentPos < this.dbFile.length()) {
+                    this.dbFile.seek(currentPos);
+                    boolean isDeleted = this.dbFile.readBoolean();
+
+                    if (!isDeleted) {
+
+                        Index.getInstance().add(currentPos);
+                    } else {
+                        deletedRows++;
+                    }
+
+                    currentPos += 1;
+                    this.dbFile.seek(currentPos);
+                    int recordLength = this.dbFile.readInt();
+                    currentPos += 4;
+
+                    this.dbFile.seek(currentPos);
+                    if (!isDeleted) {
+                        byte[] b = new byte[recordLength];
+                        this.dbFile.read(b);
+                        Person p = this.readFromByteStream(new DataInputStream(new ByteArrayInputStream(b)));
+                        Index.getInstance().addNameToIndex(p.name, rowNumber);
+                        rowNumber++;
+                    }
+
+                    currentPos += recordLength;
+                }
             }
 
-            currentPos += recordLength;
+            System.out.println("After startup: loadAllDataToIndex() -> Total row number in Database: " + rowNumber);
+            System.out.println("After startup: loadAllDataToIndex() -> Total deleted row number in DataBase: " + deletedRows);
+        } finally {
+            readLock.unlock();
         }
-
-        System.out.println("After startup: loadAllDataToIndex() -> Total row number in Database: " + rowNumber);
-        System.out.println("After startup: loadAllDataToIndex() -> Total deleted row number in DataBase: " + deletedRows);
 
     }
 
@@ -95,20 +110,27 @@ public class BaseFileHandler {
 
 
     byte[] readRowRecord(long bytePositionOfRow) throws IOException {
-        this.dbFile.seek(bytePositionOfRow);
+        readLock.lock();
+        try {
+            synchronized (this) {
+                this.dbFile.seek(bytePositionOfRow);
 
-        if (this.dbFile.readBoolean()) {
-            return new byte[0];
+                if (this.dbFile.readBoolean()) {
+                    return new byte[0];
+                }
+
+                this.dbFile.seek(bytePositionOfRow + 1);
+                int recordLength = this.dbFile.readInt();
+
+                this.dbFile.seek(bytePositionOfRow + 5);
+                byte[] data = new byte[recordLength];
+                this.dbFile.read(data);
+
+                return data;
+            }
+        } finally {
+            readLock.unlock();
         }
-
-        this.dbFile.seek(bytePositionOfRow + 1);
-        int recordLength = this.dbFile.readInt();
-
-        this.dbFile.seek(bytePositionOfRow + 5);
-        byte[] data = new byte[recordLength];
-        this.dbFile.read(data);
-
-        return data;
     }
 
 
@@ -117,45 +139,57 @@ public class BaseFileHandler {
     }
 
     public List<DebugRowInfo> loadAllDataFromFile() throws IOException {
-        if (this.dbFile.length() == 0) {
-            return new ArrayList<>();
+        writeLock.lock();
+        try {
+            if (this.dbFile.length() == 0) {
+                return new ArrayList<>();
+            }
+
+            ArrayList<DebugRowInfo> result;
+            synchronized (this) {
+                result = new ArrayList<>();
+                long currentPosition = 0;
+
+                while (currentPosition < this.dbFile.length()) {
+                    this.dbFile.seek(currentPosition);
+
+                    boolean isDeleted = this.dbFile.readBoolean();
+                    currentPosition += 1;
+                    this.dbFile.seek(currentPosition);
+                    int recordLength = this.dbFile.readInt();
+                    currentPosition += 4;
+                    byte[] b = new byte[recordLength];
+                    this.dbFile.read(b);
+
+                    Person person = readFromByteStream(new DataInputStream(new ByteArrayInputStream(b)));
+                    result.add(new DebugRowInfo(person, isDeleted));
+                    currentPosition += recordLength;
+                }
+            }
+
+            return result;
+        } finally {
+            writeLock.unlock();
         }
-
-        ArrayList<DebugRowInfo> result = new ArrayList<>();
-        long currentPosition = 0;
-
-        while (currentPosition < this.dbFile.length()) {
-            this.dbFile.seek(currentPosition);
-
-            boolean isDeleted = this.dbFile.readBoolean();
-            currentPosition += 1;
-            this.dbFile.seek(currentPosition);
-            int recordLength = this.dbFile.readInt();
-            currentPosition += 4;
-            byte[] b = new byte[recordLength];
-            this.dbFile.read(b);
-
-            Person person = readFromByteStream(new DataInputStream(new ByteArrayInputStream(b)));
-            result.add(new DebugRowInfo(person, isDeleted));
-            currentPosition += recordLength;
-        }
-
-        return result;
     }
 
     public boolean deleteFile() throws IOException {
-        this.dbFile.close();
-        if (new File(this.dbFileName).delete()) {
-            System.out.println("The file has deleted");
-            return true;
-        } else {
-            System.out.println("The file NOT deleted");
-            return false;
-
+        writeLock.lock();
+        try {
+            this.dbFile.close();
+            if (new File(this.dbFileName).delete()) {
+                System.out.println("The file has deleted");
+                return true;
+            } else {
+                System.out.println("The file NOT deleted");
+                return false;
+            }
+        } finally {
+            writeLock.unlock();
         }
     }
 
-   public String getDBName() {
+    public String getDBName() {
 
         return this.dbFileName;
     }

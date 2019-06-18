@@ -2,6 +2,7 @@ package org.trahim.dbserver;
 
 import org.trahim.exceptions.DuplicateNameException;
 import org.trahim.row.Person;
+import org.trahim.util.DebugRowInfo;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -24,6 +25,8 @@ public interface DB extends Closeable {
     List<Person> searchWithLeveinshtein(final String name, int tolerance) throws IOException;
 
     List<Person> searchWithRegexp(final String regexp) throws IOException;
+
+    List<DebugRowInfo> listAllRowsWithDebug() throws IOException;
 
 
 }

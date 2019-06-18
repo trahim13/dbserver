@@ -117,13 +117,14 @@ public final class DBServer implements DB {
         return fileHandler.search(name);
     }
 
+    @Override
     public List<DebugRowInfo> listAllRowsWithDebug() throws IOException {
         return this.fileHandler.loadAllDataFromFile();
     }
 
     @Override
     public List<Person> searchWithLeveinshtein(String name, int tolerance) throws IOException {
-        LOGGER.info("Searching with Levenshtein. Name: " + name + ". Tolerance: " + tolerance);
+        LOGGER.info("Searching with Levenshtein. Name: " + name + ". tolerance: " + tolerance);
         return this.fileHandler.searchWithLeveinshtein(name, tolerance);
     }
 

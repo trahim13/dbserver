@@ -7,8 +7,13 @@ import org.trahim.row.Index;
 import org.trahim.row.Person;
 import org.trahim.util.DebugRowInfo;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.IntStream;
 
 class Test {
@@ -23,11 +28,13 @@ class Test {
 
     private void performTest() throws DuplicateNameException {
         try {
-            fragmentDatabase();
+            deleteDataBase();
+//            fragmentDatabase();
 //            listAllRecords();
 //            defragmentDB();
 //            System.out.println("-=After defragmentation=-");
 //            listAllRecords();
+            doMultipleTreadsTest();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -137,11 +144,76 @@ class Test {
     }
 
     public void delete(int rowNumber) throws IOException {
+
         try (DB db = new DBServer(dbFile)) {
             db.delete(rowNumber);
         } catch (IOException ioe) {
             throw ioe;
         }
 
+    }
+
+    private void doMultipleTreadsTest() throws IOException {
+        CountDownLatch countDownLatch = new CountDownLatch(3);
+
+        try (DB db = new DBServer(dbFile)) {
+            Runnable runnableAdd = () -> {
+                while (true) {
+                    int i = new Random().nextInt(4000);
+                    Person p0 = new Person("Person " + i, 3, "3", "4", "5");
+                    try {
+                        db.add(p0);
+                    } catch (IOException | DuplicateNameException e) {
+                        e.printStackTrace();
+                    }
+
+                }
+            };
+            Runnable runnableUpdate = () -> {
+                while (true) {
+                    int i = new Random().nextInt(4000);
+                    Person p0 = new Person("Person " + i +"__updated", 3, "3", "4", "5");
+                    try {
+                        db.update("Person " + 1, p0);
+                    } catch (IOException | DuplicateNameException e) {
+                        e.printStackTrace();
+                    }
+
+                }
+            };
+            Runnable runnableListAll = () -> {
+                while (true) {
+                    try {
+                        db.listAllRowsWithDebug();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                }
+            };
+
+            ExecutorService executorService = Executors.newFixedThreadPool(3);
+            executorService.submit(runnableListAll);
+            executorService.submit(runnableUpdate);
+            executorService.submit(runnableAdd);
+
+            try {
+                countDownLatch.await();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+        }
+
+
+
+
+    }
+
+    private void deleteDataBase() {
+        File file = new File(dbFile);
+        if (file.exists()) {
+            file.delete();
+        }
     }
 }

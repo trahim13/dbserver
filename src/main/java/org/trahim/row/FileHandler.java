@@ -3,10 +3,7 @@ package org.trahim.row;
 import org.trahim.exceptions.DuplicateNameException;
 import org.trahim.util.Leveinshtein;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -14,10 +11,14 @@ import java.util.Set;
 public class FileHandler extends BaseFileHandler {
 
 
-    public FileHandler(String dbFileName) throws FileNotFoundException {
+    public FileHandler(final String dbFileName) throws FileNotFoundException {
         super(dbFileName);
     }
 
+    public FileHandler(final RandomAccessFile randomAccessFile, final String dbFileName) {
+        super(randomAccessFile, dbFileName);
+
+    }
 
     public void add(String name,
                     int age,

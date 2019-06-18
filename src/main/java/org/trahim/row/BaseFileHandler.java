@@ -10,10 +10,16 @@ import java.util.List;
 public class BaseFileHandler {
 
     RandomAccessFile dbFile;
+    String dbFileName = "";
 
     BaseFileHandler(String dbFileName) throws FileNotFoundException {
-
+        this.dbFileName = dbFileName;
         this.dbFile = new RandomAccessFile(dbFileName, "rw");
+    }
+
+    public BaseFileHandler(final RandomAccessFile randomAccessFile, final String dbFileName) {
+        this.dbFileName = dbFileName;
+        this.dbFile = randomAccessFile;
     }
 
     public void loadAllDataToIndex() throws IOException {
@@ -118,14 +124,14 @@ public class BaseFileHandler {
         ArrayList<DebugRowInfo> result = new ArrayList<>();
         long currentPosition = 0;
 
-        while (currentPosition<this.dbFile.length()) {
+        while (currentPosition < this.dbFile.length()) {
             this.dbFile.seek(currentPosition);
 
             boolean isDeleted = this.dbFile.readBoolean();
             currentPosition += 1;
             this.dbFile.seek(currentPosition);
             int recordLength = this.dbFile.readInt();
-            currentPosition+=4;
+            currentPosition += 4;
             byte[] b = new byte[recordLength];
             this.dbFile.read(b);
 
@@ -136,4 +142,22 @@ public class BaseFileHandler {
 
         return result;
     }
+
+    public boolean deleteFile() throws IOException {
+        this.dbFile.close();
+        if (new File(this.dbFileName).delete()) {
+            System.out.println("The file has deleted");
+            return true;
+        } else {
+            System.out.println("The file NOT deleted");
+            return false;
+
+        }
+    }
+
+   public String getDBName() {
+
+        return this.dbFileName;
+    }
+
 }

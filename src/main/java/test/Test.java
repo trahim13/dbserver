@@ -9,6 +9,7 @@ import org.trahim.util.DebugRowInfo;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.IntStream;
 
 class Test {
     private final static String dbFile = "DbServer.db";
@@ -22,11 +23,21 @@ class Test {
 
     private void performTest() throws DuplicateNameException {
         try {
-            fillDB();
-            testSearhWhithRegex();
-
+            fragmentDatabase();
+            listAllRecords();
+            defragmentDB();
+            System.out.println("-=After defragmentation=-");
+            listAllRecords();
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void defragmentDB() throws IOException, DuplicateNameException {
+        try (DBServer db = new DBServer(dbFile)) {
+            db.defragmentDatabase();
+        } catch (IOException e) {
+            throw e;
         }
     }
 
@@ -106,8 +117,23 @@ class Test {
         } catch (IOException ioe) {
             throw ioe;
         }
+    }
 
+    public void fragmentDatabase() throws IOException, DuplicateNameException {
+        try (DB db = new DBServer(dbFile)) {
+            for (int i :
+                    IntStream.range(0, 100).toArray()) {
 
+                Person p0 = new Person("Person " + i, 3, "3", "4", "5");
+                db.add(p0);
+            }
+
+            for (int i : IntStream.range(0, 100).toArray()) {
+                if (i % 2 == 0) {
+                    db.update("Person " + i, new Person("Person " + i + "_updated", 3, "3", "4", "5"));
+                }
+            }
+        }
     }
 
     public void delete(int rowNumber) throws IOException {

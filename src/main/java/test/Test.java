@@ -10,10 +10,10 @@ import org.trahim.util.DebugRowInfo;
 import java.io.IOException;
 import java.util.List;
 
-public class Test {
-    final static String dbFile = "DbServer.db";
+class Test {
+    private final static String dbFile = "DbServer.db";
 
-    public static void main(String[] args) throws IOException, DuplicateNameException {
+    public static void main(String[] args) throws DuplicateNameException {
 
         new Test().performTest();
 
@@ -22,18 +22,48 @@ public class Test {
 
     private void performTest() throws DuplicateNameException {
         try {
-            fillDB(10);
-            delete(0);
-            delete(2);
-            delete(5);
-
-            listAllRecords();
+            fillDB();
+            testSearhWhithRegex();
 
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    private void testSearhWhithRegex() throws IOException {
+        try (DB db = new DBServer(dbFile)) {
+            List<Person> result = db.searchWithRegexp("Pers.*");
+            System.out.println("-=Search with Regexp=-");
+            for (Person p :
+                    result) {
+                System.out.println(p);
+            }
+        } catch (IOException e) {
+            throw e;
+        }
+    }
+
+    public void testLevenshtein() throws IOException {
+        try (DB db = new DBServer(dbFile)) {
+            List<Person> result = db.searchWithLeveinshtein("Person 4", 0);
+            System.out.println("-=Search with Levenshtein=-");
+            for (Person p :
+                    result) {
+                System.out.println(p);
+            }
+        } catch (IOException e) {
+            throw e;
+        }
+    }
+
+    public void testSearch() throws IOException {
+        try (DB db = new DBServer(dbFile)) {
+            Person result = db.search("Person 4");
+            System.out.println("Person " + result);
+        } catch (IOException e) {
+            throw e;
+        }
+    }
 
     void listAllRecords() throws IOException {
 
@@ -66,9 +96,9 @@ public class Test {
         System.out.println(s);
     }
 
-    public void fillDB(int number) throws IOException, DuplicateNameException {
+    private void fillDB() throws IOException, DuplicateNameException {
         try (DB db = new DBServer(dbFile)) {
-            for (int i = 0; i < number; i++) {
+            for (int i = 0; i < 10; i++) {
                 Person p0 = new Person("Person " + i, 3, "3", "4", "5");
                 db.add(p0);
             }

@@ -5,6 +5,7 @@ import org.trahim.row.Person;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 
 public interface DB extends Closeable {
     void add(Person person) throws IOException, DuplicateNameException;
@@ -17,6 +18,12 @@ public interface DB extends Closeable {
 
     void update(long rowNumber, final Person person) throws IOException, DuplicateNameException;
     void update(String name, final Person person) throws IOException, DuplicateNameException;
+
+    Person search(final String name) throws IOException;
+
+    List<Person> searchWithLeveinshtein(final String name, int tolerance) throws IOException;
+
+    List<Person> searchWithRegexp(final String regexp) throws IOException;
 
 
 }

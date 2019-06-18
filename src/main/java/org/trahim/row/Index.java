@@ -1,15 +1,16 @@
 package org.trahim.row;
 
 import java.util.HashMap;
+import java.util.Set;
 
 public final class Index {
 
     private static Index index;
     //row number, byte position
-    private HashMap<Long, Long> rowIndex;
+    private final HashMap<Long, Long> rowIndex;
 
     //String name, rowNUmber
-    private HashMap<String, Long> nameIndex;
+    private final HashMap<String, Long> nameIndex;
 
     private  long totalRowNumber = 0;
 
@@ -55,12 +56,16 @@ public final class Index {
     }
 
     public long getRowNumberByName(final String name) {
-            return this.nameIndex.get(name);
+        return this.nameIndex.getOrDefault(name, -1L);
     }
 
     public void clear() {
         this.totalRowNumber = 0;
         this.rowIndex.clear();
         this.nameIndex.clear();
+    }
+
+    public Set<String> getNames() {
+        return this.nameIndex.keySet();
     }
 }

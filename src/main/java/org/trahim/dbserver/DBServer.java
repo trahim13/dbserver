@@ -65,7 +65,22 @@ public final class DBServer implements DB {
                 person.name, person.age, person.address, person.carPlateNumber, person.description);
     }
 
+    @Override
+    public Person search(String name) throws IOException {
+        return fileHandler.search(name);
+    }
+
     public List<DebugRowInfo> listAllRowsWithDebug() throws IOException {
         return this.fileHandler.loadAllDataFromFile();
+    }
+
+    @Override
+    public List<Person> searchWithLeveinshtein(String name, int tolerance) throws IOException {
+        return this.fileHandler.searchWithLeveinshtein(name, tolerance);
+    }
+
+    @Override
+    public List<Person> searchWithRegexp(String regexp) throws IOException {
+        return this.fileHandler.searchWithRegex(regexp);
     }
 }

@@ -11,7 +11,7 @@ public class BaseFileHandler {
 
     RandomAccessFile dbFile;
 
-    public BaseFileHandler(String dbFileName) throws FileNotFoundException {
+    BaseFileHandler(String dbFileName) throws FileNotFoundException {
 
         this.dbFile = new RandomAccessFile(dbFileName, "rw");
     }
@@ -59,7 +59,7 @@ public class BaseFileHandler {
     }
 
 
-    public Person readFromByteStream(final DataInputStream in) throws IOException {
+    Person readFromByteStream(final DataInputStream in) throws IOException {
         Person person = new Person();
 
         int nameLength = in.readInt();
@@ -88,7 +88,7 @@ public class BaseFileHandler {
     }
 
 
-    public byte[] readRowRecord(long bytePositionOfRow) throws IOException {
+    byte[] readRowRecord(long bytePositionOfRow) throws IOException {
         this.dbFile.seek(bytePositionOfRow);
 
         if (this.dbFile.readBoolean()) {

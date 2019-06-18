@@ -1,4 +1,3 @@
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -10,10 +9,11 @@ import org.trahim.row.Person;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
 public class DBBasicTests {
 
-    private String dbFileName = "test.db";
+    private final String dbFileName = "test.db";
 
     @Before
     public void setup() {
@@ -71,7 +71,7 @@ public class DBBasicTests {
     }
 
     @Test
-    public void updateByName() throws IOException, DuplicateNameException {
+    public void updateByName() throws DuplicateNameException {
         try (DB db = new DBServer(dbFileName)) {
             Person p0 = new Person("Test 0", 3, "4", "5", "6");
             db.add(p0);
@@ -85,7 +85,7 @@ public class DBBasicTests {
         }
     }
     @Test
-    public void updateByRowNumber() throws IOException, DuplicateNameException {
+    public void updateByRowNumber() throws DuplicateNameException {
         try (DB db = new DBServer(dbFileName)) {
             Person p0 = new Person("Test 0", 3, "4", "5", "6");
             db.add(p0);
@@ -99,6 +99,77 @@ public class DBBasicTests {
         }
     }
 
+    @Test
+    public void teatSearch() throws DuplicateNameException {
+        try (DB db = new DBServer(dbFileName)) {
+            Person p0 = new Person("Test 0", 3, "4", "5", "6");
+            Person p1 = new Person("Test 1", 55, "4", "5", "6");
+            db.add(p0);
+            db.add(p1);
 
+            Person result = db.search("Test 1");
+            Assert.assertEquals("Test 1", result.name);
+
+        } catch (IOException ioe) {
+            Assert.fail();
+
+        }
+
+
+
+    }
+
+    @Test
+    public void teatSearchWithLeveishtein() throws DuplicateNameException {
+        try (DB db = new DBServer(dbFileName)) {
+            Person p0 = new Person("Test 0", 3, "4", "5", "6");
+            Person p1 = new Person("Test 1", 55, "4", "5", "6");
+            db.add(p0);
+            db.add(p1);
+
+            List<Person> result = db.searchWithLeveinshtein("Test 1", 0);
+            Assert.assertEquals(result.size(), 1);
+            Assert.assertEquals(result.get(0).name, "Test 1");
+
+        } catch (IOException ioe) {
+            Assert.fail();
+
+        }
+    }
+
+
+    @Test
+    public void teatSearchWith_tolerance_1_Leveishtein() throws DuplicateNameException {
+        try (DB db = new DBServer(dbFileName)) {
+            Person p0 = new Person("Test 0", 3, "4", "5", "6");
+            Person p1 = new Person("Test 1", 55, "4", "5", "6");
+            db.add(p0);
+            db.add(p1);
+
+            List<Person> result = db.searchWithLeveinshtein("Test 1", 1);
+            Assert.assertEquals(result.size(), 2);
+
+        } catch (IOException ioe) {
+            Assert.fail();
+
+        }
+    }
+
+    @Test
+   public void testWithRegexp() throws DuplicateNameException {
+        try (DB db = new DBServer(dbFileName)) {
+            Person p0 = new Person("Test 0", 3, "4", "5", "6");
+            Person p1 = new Person("Test 1", 55, "4", "5", "6");
+            db.add(p0);
+            db.add(p1);
+
+            List<Person> result = db.searchWithRegexp("Tes.*");
+            Assert.assertEquals(result.size(), 2);
+
+        } catch (IOException ioe) {
+            Assert.fail();
+
+        }
+    }
 
 }

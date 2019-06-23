@@ -2,6 +2,7 @@ package org.trahim.row;
 
 import org.trahim.exceptions.DuplicateNameException;
 import org.trahim.util.Leveinshtein;
+import org.trahim.util.OperationUnit;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -20,7 +21,7 @@ public class FileHandler extends BaseFileHandler {
 
     }
 
-    public void add(String name,
+    public OperationUnit add(String name,
                     int age,
                     String address,
                     String carPlateNumber,
@@ -37,11 +38,15 @@ public class FileHandler extends BaseFileHandler {
 
             int length =
                     4 + name.length() +
-                            4 +
+                            4 +//age
                             4 + address.length() +
                             4 + carPlateNumber.length() +
                             4 + description.length();
 
+
+
+            // isTemporary
+            this.dbFile.writeBoolean(true);
 
             this.dbFile.writeBoolean(false);
             this.dbFile.writeInt(length);
@@ -61,8 +66,13 @@ public class FileHandler extends BaseFileHandler {
             this.dbFile.writeInt(description.length());
             this.dbFile.write(description.getBytes());
 
-            Index.getInstance().add(currentPositionToInsert);
-            Index.getInstance().addNameToIndex(name, Index.getInstance().getTotalNumberOfRows() - 1);
+            OperationUnit ou = new OperationUnit();
+            ou.addedRowPosition = currentPositionToInsert;
+
+            return ou;
+
+//            Index.getInstance().add(currentPositionToInsert);
+//            Index.getInstance().addNameToIndex(name, Index.getInstance().getTotalNumberOfRows() - 1);
         } finally {
             writeLock.unlock();
         }
@@ -89,7 +99,7 @@ public class FileHandler extends BaseFileHandler {
     }
 
 
-    public void deleteRow(long rowNumber) throws IOException {
+    public OperationUnit deleteRow(long rowNumber) throws IOException {
         writeLock.lock();
         try {
             long bytePositionOfRecord = Index.getInstance().getBytePosition(rowNumber);
@@ -99,31 +109,44 @@ public class FileHandler extends BaseFileHandler {
             }
 
             this.dbFile.seek(bytePositionOfRecord);
+            // isTemporary
             this.dbFile.writeBoolean(true);
 
-            Index.getInstance().remove(rowNumber);
+            this.dbFile.seek(bytePositionOfRecord + 1);
+            this.dbFile.writeBoolean(true);
+
+            OperationUnit ou = new OperationUnit();
+            ou.deletedRowPosition = bytePositionOfRecord;
+            return ou;
+//            Index.getInstance().remove(rowNumber);
         } finally {
             writeLock.unlock();
         }
 
     }
 
-    public void updateRow(long rowNumber,
-                          String name,
-                          int age,
-                          String address,
-                          String carPlateNumber,
-                          String description) throws IOException, DuplicateNameException {
+    public OperationUnit updateRow(long rowNumber,
+                                   String name,
+                                   int age,
+                                   String address,
+                                   String carPlateNumber,
+                                   String description) throws IOException, DuplicateNameException {
         writeLock.lock();
         try {
-            this.deleteRow(rowNumber);
-            this.add(name, age, address, carPlateNumber, description);
+            OperationUnit deletedOperation = this.deleteRow(rowNumber);
+            OperationUnit addOperation = this.add(name, age, address, carPlateNumber, description);
+
+            OperationUnit operation = new OperationUnit();
+            operation.deletedRowPosition = deletedOperation.deletedRowPosition;
+            operation.addedRowPosition = addOperation.addedRowPosition;
+            operation.succesfullOperation = true;
+            return operation;
         } finally {
             writeLock.unlock();
         }
     }
 
-    public void update(final String nameToModify,
+    public OperationUnit update(final String nameToModify,
                        String name,
                        int age,
                        String address,
@@ -132,7 +155,10 @@ public class FileHandler extends BaseFileHandler {
         writeLock.lock();
         try {
             long rowNumber = Index.getInstance().getRowNumberByName(nameToModify);
-            this.updateRow(rowNumber, name, age, address, carPlateNumber, description);
+            if (rowNumber == -1) {
+                return new OperationUnit();
+            }
+            return this.updateRow(rowNumber, name, age, address, carPlateNumber, description);
         } finally {
             writeLock.unlock();
         }

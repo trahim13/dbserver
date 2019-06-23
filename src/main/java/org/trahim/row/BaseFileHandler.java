@@ -40,14 +40,23 @@ public class BaseFileHandler {
             long currentPos = 0;
             long rowNumber = 0;
             long deletedRows = 0;
+            long temporaryRows = 0;
 
             synchronized (this) {
                 while (currentPos < this.dbFile.length()) {
+
+                    this.dbFile.seek(currentPos);
+
+                    boolean isTemporary = this.dbFile.readBoolean();
+                    if (isTemporary) {
+                        temporaryRows += 1;
+                    }
+
+                    currentPos += 1;
                     this.dbFile.seek(currentPos);
                     boolean isDeleted = this.dbFile.readBoolean();
 
                     if (!isDeleted) {
-
                         Index.getInstance().add(currentPos);
                     } else {
                         deletedRows++;
@@ -59,7 +68,7 @@ public class BaseFileHandler {
                     currentPos += 4;
 
                     this.dbFile.seek(currentPos);
-                    if (!isDeleted) {
+                    if (!isDeleted && !isTemporary) {
                         byte[] b = new byte[recordLength];
                         this.dbFile.read(b);
                         Person p = this.readFromByteStream(new DataInputStream(new ByteArrayInputStream(b)));
@@ -73,6 +82,7 @@ public class BaseFileHandler {
 
             System.out.println("After startup: loadAllDataToIndex() -> Total row number in Database: " + rowNumber);
             System.out.println("After startup: loadAllDataToIndex() -> Total deleted row number in DataBase: " + deletedRows);
+            System.out.println("After startup: loadAllDataToIndex() -> Total temporary row number in DataBase: " + temporaryRows);
         } finally {
             readLock.unlock();
         }
@@ -114,15 +124,17 @@ public class BaseFileHandler {
         try {
             synchronized (this) {
                 this.dbFile.seek(bytePositionOfRow);
+                boolean isTemporary = this.dbFile.readBoolean();
 
+                this.dbFile.seek(bytePositionOfRow + 1);
                 if (this.dbFile.readBoolean()) {
                     return new byte[0];
                 }
 
-                this.dbFile.seek(bytePositionOfRow + 1);
+                this.dbFile.seek(bytePositionOfRow + 2);
                 int recordLength = this.dbFile.readInt();
 
-                this.dbFile.seek(bytePositionOfRow + 5);
+                this.dbFile.seek(bytePositionOfRow + 6);
                 byte[] data = new byte[recordLength];
                 this.dbFile.read(data);
 
@@ -152,17 +164,22 @@ public class BaseFileHandler {
 
                 while (currentPosition < this.dbFile.length()) {
                     this.dbFile.seek(currentPosition);
+                    boolean isTemporary = this.dbFile.readBoolean();
 
+                    currentPosition +=1;
+                    this.dbFile.seek(currentPosition);
                     boolean isDeleted = this.dbFile.readBoolean();
+
                     currentPosition += 1;
                     this.dbFile.seek(currentPosition);
                     int recordLength = this.dbFile.readInt();
+
                     currentPosition += 4;
                     byte[] b = new byte[recordLength];
                     this.dbFile.read(b);
 
                     Person person = readFromByteStream(new DataInputStream(new ByteArrayInputStream(b)));
-                    result.add(new DebugRowInfo(person, isDeleted));
+                    result.add(new DebugRowInfo(person, isDeleted, isTemporary));
                     currentPosition += recordLength;
                 }
             }
@@ -194,4 +211,65 @@ public class BaseFileHandler {
         return this.dbFileName;
     }
 
+
+    public void commit(List<Long> newRows, List<Long> deletedRows) throws IOException {
+        writeLock.lock();
+        try {
+            for (Long position : newRows) {
+                dbFile.seek(position);
+                this.dbFile.writeBoolean(false);
+
+                // re-read the record
+                byte[] b = this.readRowRecord(position);
+                Person person = this.readFromByteStream(new DataInputStream(new ByteArrayInputStream(b)));
+                //add it to the index
+                Index.getInstance().addNameToIndex(person.name, Index.getInstance().getTotalNumberOfRows());
+                Index.getInstance().add(position);
+
+
+            }
+            for (Long position : deletedRows) {
+                dbFile.seek(position);
+                this.dbFile.writeBoolean(false);
+                Index.getInstance().removeByFilePosition(position);
+            }
+        } finally {
+            writeLock.unlock();
+        }
+
+    }
+
+    public void rollback(List<Long> newRows, List<Long> deletedRows) throws IOException {
+        writeLock.lock();
+
+        try {
+            for (Long position : newRows) {
+                this.dbFile.seek(position);
+                this.dbFile.writeBoolean(false);
+
+                this.dbFile.seek(position + 1);
+                this.dbFile.writeBoolean(true);
+
+                Index.getInstance().removeByFilePosition(position);
+
+            }
+
+            for (Long position : deletedRows) {
+                this.dbFile.seek(position);
+                this.dbFile.writeBoolean(false);
+                this.dbFile.seek(position + 1);
+                this.dbFile.writeBoolean(false);
+
+                byte[] b = this.readRowRecord(position);
+                Person person = this.readFromByteStream(new DataInputStream(new ByteArrayInputStream(b)));
+                //add it to the index
+                Index.getInstance().addNameToIndex(person.name, Index.getInstance().getTotalNumberOfRows());
+                Index.getInstance().add(position);
+
+            }
+        } finally {
+            writeLock.unlock();
+
+        }
+    }
 }

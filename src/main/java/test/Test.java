@@ -5,6 +5,7 @@ import org.trahim.dbserver.DBServer;
 import org.trahim.exceptions.DuplicateNameException;
 import org.trahim.row.Index;
 import org.trahim.row.Person;
+import org.trahim.transaction.ITransaction;
 import org.trahim.util.DebugRowInfo;
 
 import java.io.File;
@@ -34,7 +35,9 @@ class Test {
 //            defragmentDB();
 //            System.out.println("-=After defragmentation=-");
 //            listAllRecords();
-            doMultipleTreadsTest();
+            addPersonWhithTransaction();
+            listAllRecords();
+//            doMultipleTreadsTest();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -101,11 +104,15 @@ class Test {
 
     private void prittyPrintRow(DebugRowInfo dri) {
         Person person = dri.getPerson();
+        boolean isTemporary = dri.isTemporary();
         boolean isDeleted = dri.isDeleted();
 
-        String debugChar = isDeleted ? "-" : "+";
+        String deletedChar = isDeleted ? "-" : "+";
+        String temporaryChar = isTemporary ? "temporary" : "final";
 
-        String s = String.format(" %s, name: %s, age: %d, description: %s, carPlate: %s", debugChar,
+        String s = String.format("%s %s, name: %s, age: %d, description: %s, carPlate: %s",
+                temporaryChar,
+                deletedChar,
                 person.name,
                 person.age,
                 person.description,
@@ -172,7 +179,7 @@ class Test {
             Runnable runnableUpdate = () -> {
                 while (true) {
                     int i = new Random().nextInt(4000);
-                    Person p0 = new Person("Person " + i +"__updated", 3, "3", "4", "5");
+                    Person p0 = new Person("Person " + i + "__updated", 3, "3", "4", "5");
                     try {
                         db.update("Person " + 1, p0);
                     } catch (IOException | DuplicateNameException e) {
@@ -206,9 +213,19 @@ class Test {
         }
 
 
-
-
     }
+
+    public void addPersonWhithTransaction() throws IOException, DuplicateNameException {
+        try (DB db = new DBServer(dbFile)) {
+            ITransaction transaction = db.beginTransaction();
+            Person p0 = new Person("Person T", 3, "3", "4", "5c");
+            db.add(p0);
+//            db.commit(); // rollback();
+            db.rollback();
+
+        }
+    }
+
 
     private void deleteDataBase() {
         File file = new File(dbFile);

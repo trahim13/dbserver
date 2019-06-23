@@ -36,9 +36,16 @@ public final class Index {
         return Index.getInstance().rowIndex.getOrDefault(rowNumber, -1L);
     }
 
-    public synchronized void remove(long row) {
+    private synchronized void remove(long row) {
         this.rowIndex.remove(row);
         this.totalRowNumber--;
+
+        // remove also from name index
+
+        String nameToDelete = this.nameIndex.search(2, (k, v) -> v == row ? k : null);
+        if (nameToDelete != null) {
+            this.nameIndex.remove(nameToDelete);
+        }
     }
 
     public synchronized long getTotalNumberOfRows() {
@@ -67,5 +74,16 @@ public final class Index {
 
     public Set<String> getNames() {
         return this.nameIndex.keySet();
+    }
+
+    public void removeByFilePosition(Long position) {
+        if (this.rowIndex.isEmpty()) {
+            return;
+        }
+
+        long row = this.rowIndex.search(1, (k, v) -> v == position ? k : -1);
+        if (row != -1) {
+            this.remove(row);
+        }
     }
 }

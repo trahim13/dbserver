@@ -42,6 +42,8 @@ public final class DBServer implements DB {
 
     private void initialise() throws IOException {
 
+        this.fileHandler.initialise();
+
         Properties properties = new Properties();
         properties.load(new FileInputStream((LOG_FILE_NAME)));
         boolean hasLogLevel = properties.containsKey(LOG_LEVEL);
@@ -209,6 +211,7 @@ public final class DBServer implements DB {
 
     private ITransaction getTransaction() {
         long threadId = Thread.currentThread().getId();
+        LOGGER.info("[ " + this.getClass().getName() + " ]. " + "Get transaction with id " + threadId);
         return this.transactions.getOrDefault(threadId, null);
     }
 
@@ -237,7 +240,7 @@ public final class DBServer implements DB {
         this.fileHandler.commit(transaction.getNewRows(), transaction.getDeletedRows());
         this.transactions.remove(Thread.currentThread().getId());
         this.transactions.clear();
-        LOGGER.info("[" + this.getClass().getName() + "]. " + " Commit DONE.");
+        LOGGER.info("[" + this.getClass().getName() + "]. " + " Commit DONE (" + transaction.getUid() + " )");
 
 
     }
@@ -254,7 +257,7 @@ public final class DBServer implements DB {
         this.transactions.remove(Thread.currentThread().getId());
         this.transactions.clear();
 
-        LOGGER.info("[" + this.getClass().getName() + "]. " + " Rollback DONE.");
+        LOGGER.info("[" + this.getClass().getName() + "]. " + " Rollback DONE. (" + transaction.getUid()+" )");
     }
 
     private void logInfoPerson(final Person person) {

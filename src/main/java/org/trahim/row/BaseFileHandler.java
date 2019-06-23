@@ -5,6 +5,7 @@ import org.trahim.util.DebugRowInfo;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -18,6 +19,8 @@ public class BaseFileHandler {
     final Lock readLock = readWriteLock.readLock();
     final Lock writeLock = readWriteLock.writeLock();
 
+    private final static int HEADER_INFO_SPACE = 100;
+
 
     BaseFileHandler(String dbFileName) throws FileNotFoundException {
         this.dbFileName = dbFileName;
@@ -29,6 +32,17 @@ public class BaseFileHandler {
         this.dbFile = randomAccessFile;
     }
 
+
+    public void initialise() throws IOException {
+        if (this.dbFile.length() == 0) {
+            this.setDBVersion();
+
+        } else {
+            String dbVersion = this.getDBVersion();
+            System.out.println("DB version: " + dbVersion);
+        }
+    }
+
     public void loadAllDataToIndex() throws IOException {
 
         readLock.lock();
@@ -37,7 +51,7 @@ public class BaseFileHandler {
                 return;
             }
 
-            long currentPos = 0;
+            long currentPos = HEADER_INFO_SPACE;
             long rowNumber = 0;
             long deletedRows = 0;
             long temporaryRows = 0;
@@ -124,7 +138,7 @@ public class BaseFileHandler {
         try {
             synchronized (this) {
                 this.dbFile.seek(bytePositionOfRow);
-                boolean isTemporary = this.dbFile.readBoolean();
+                this.dbFile.readBoolean(); // temporary
 
                 this.dbFile.seek(bytePositionOfRow + 1);
                 if (this.dbFile.readBoolean()) {
@@ -160,13 +174,13 @@ public class BaseFileHandler {
             ArrayList<DebugRowInfo> result;
             synchronized (this) {
                 result = new ArrayList<>();
-                long currentPosition = 0;
+                long currentPosition = HEADER_INFO_SPACE;
 
                 while (currentPosition < this.dbFile.length()) {
                     this.dbFile.seek(currentPosition);
                     boolean isTemporary = this.dbFile.readBoolean();
 
-                    currentPosition +=1;
+                    currentPosition += 1;
                     this.dbFile.seek(currentPosition);
                     boolean isDeleted = this.dbFile.readBoolean();
 
@@ -270,6 +284,30 @@ public class BaseFileHandler {
         } finally {
             writeLock.unlock();
 
+        }
+    }
+
+    private void setDBVersion() throws IOException {
+
+        this.dbFile.seek(0);
+        String VERSION = "0.1";
+        this.dbFile.write(VERSION.getBytes());
+        char[] chars = new char[HEADER_INFO_SPACE - VERSION.length()];
+        Arrays.fill(chars, ' ');
+        this.dbFile.write(new String(chars).getBytes());
+
+    }
+
+
+    private String getDBVersion() throws IOException {
+        readLock.lock();
+        try {
+            this.dbFile.seek(0);
+            byte[] b = new byte[HEADER_INFO_SPACE];
+            this.dbFile.read(b);
+            return new String(b).trim();
+        } finally {
+            readLock.unlock();
         }
     }
 }

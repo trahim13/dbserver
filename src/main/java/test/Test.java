@@ -220,8 +220,8 @@ class Test {
             ITransaction transaction = db.beginTransaction();
             Person p0 = new Person("Person T", 3, "3", "4", "5c");
             db.add(p0);
-//            db.commit(); // rollback();
-            db.rollback();
+            db.commit(); // rollback();
+//            db.rollback();
 
         }
     }

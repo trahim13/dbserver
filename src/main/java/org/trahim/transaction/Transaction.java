@@ -1,6 +1,5 @@
 package org.trahim.transaction;
 
-import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -22,7 +21,6 @@ public final class Transaction implements ITransaction {
 
         return Math.random() * ((max - min) + 1) + min;
     }
-
 
 
     @Override

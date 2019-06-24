@@ -35,6 +35,8 @@ public interface DB extends Closeable {
 
     void rollback() throws IOException;
 
+    long getTotalRecordNumber();
+
 
 
 }

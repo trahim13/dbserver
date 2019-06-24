@@ -260,6 +260,12 @@ public final class DBServer implements DB {
         LOGGER.info("[" + this.getClass().getName() + "]. " + " Rollback DONE. (" + transaction.getUid()+" )");
     }
 
+    @Override
+    public long getTotalRecordNumber() {
+        return Index.getInstance().getTotalNumberOfRows();
+    }
+
+
     private void logInfoPerson(final Person person) {
         LOGGER.info("[" + this.getClass().getName() + "]. " + "Read person: " + person);
     }

@@ -1,5 +1,7 @@
 package org.trahim.row;
 
+import com.google.gson.JsonObject;
+
 public class Person {
 
     public String name;
@@ -28,5 +30,16 @@ public class Person {
                 ", carPlateNumber='" + carPlateNumber + '\'' +
                 ", description='" + description + '\'' +
                 '}';
+    }
+
+    public String toJSON() {
+        JsonObject json = new JsonObject();
+        json.addProperty("name", this.name);
+        json.addProperty("age", this.age);
+        json.addProperty("address", this.address);
+        json.addProperty("carPlateNumber", this.carPlateNumber);
+        json.addProperty("description", this.description);
+
+        return json.toString();
     }
 }

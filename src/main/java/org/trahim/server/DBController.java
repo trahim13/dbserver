@@ -80,7 +80,7 @@ public final class DBController {
             result.add(i.toJSON());
         });
 
-        ctx.json(true);
+        ctx.json(result);
     };
 
 }

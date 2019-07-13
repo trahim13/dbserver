@@ -1,6 +1,6 @@
-package org.trahim.row;
+package org.trahim.row.general;
 
-
+import org.trahim.row.specific.Index;
 import org.trahim.util.DebugRowInfo;
 
 import java.io.*;
@@ -11,23 +11,34 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-public class BaseFileHandler {
-
+public class GenericBaseFileHandler {
     RandomAccessFile dbFile;
     private final String dbFileName;
+    protected Schema schema;
+    protected Class zclass;
+
+
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
     final Lock readLock = readWriteLock.readLock();
     final Lock writeLock = readWriteLock.writeLock();
 
     private final static int HEADER_INFO_SPACE = 100;
 
+    public void setSchema(final Schema schema) {
+        this.schema = schema;
+    }
 
-    BaseFileHandler(String dbFileName) throws FileNotFoundException {
+    public void setZClass(final Class zclass) {
+        this.zclass = zclass;
+    }
+
+
+    GenericBaseFileHandler(String dbFileName) throws FileNotFoundException {
         this.dbFileName = dbFileName;
         this.dbFile = new RandomAccessFile(dbFileName, "rw");
     }
 
-    BaseFileHandler(final RandomAccessFile randomAccessFile, final String dbFileName) {
+    GenericBaseFileHandler(final RandomAccessFile randomAccessFile, final String dbFileName) {
         this.dbFileName = dbFileName;
         this.dbFile = randomAccessFile;
     }
@@ -43,7 +54,7 @@ public class BaseFileHandler {
         }
     }
 
-    public void loadAllDataToIndex() throws IOException {
+    public void loadAllDataToIndex(final Class zclass) throws IOException {
 
         readLock.lock();
         try {
@@ -71,7 +82,7 @@ public class BaseFileHandler {
                     boolean isDeleted = this.dbFile.readBoolean();
 
                     if (!isDeleted) {
-                        Index.getInstance().add(currentPos);
+                        GenericIndex.getInstance().add(currentPos);
                     } else {
                         deletedRows++;
                     }
@@ -85,8 +96,11 @@ public class BaseFileHandler {
                     if (!isDeleted && !isTemporary) {
                         byte[] b = new byte[recordLength];
                         this.dbFile.read(b);
-                        Person p = this.readFromByteStream(new DataInputStream(new ByteArrayInputStream(b)));
-                        Index.getInstance().addNameToIndex(p.name, rowNumber);
+
+                        Object object = this.readFromByteStream(new DataInputStream(new ByteArrayInputStream(b)), zclass);
+                        String _name = (String) object.getClass().getDeclaredField("pname").get(object);
+
+                        GenericIndex.getInstance().addNameToIndex(_name, rowNumber);
                         rowNumber++;
                     }
 
@@ -97,39 +111,49 @@ public class BaseFileHandler {
             System.out.println("After startup: loadAllDataToIndex() -> Total row number in Database: " + rowNumber);
             System.out.println("After startup: loadAllDataToIndex() -> Total deleted row number in DataBase: " + deletedRows);
             System.out.println("After startup: loadAllDataToIndex() -> Total temporary row number in DataBase: " + temporaryRows);
-        } finally {
+        } catch (IllegalAccessException | NoSuchFieldException e) {
+            e.printStackTrace();
+        }  finally {
             readLock.unlock();
         }
 
     }
 
 
-    Person readFromByteStream(final DataInputStream in) throws IOException {
-        Person person = new Person();
+    Object readFromByteStream(final DataInputStream in, final Class zclass) throws IOException {
 
-        int nameLength = in.readInt();
-        byte[] b = new byte[nameLength];
-        in.read(b);
-        person.name = new String(b);
+        Object result = null;
 
-        person.age = in.readInt();
+        try {
+            result = Class.forName(zclass.getCanonicalName())
+                    .newInstance();
 
-        b = new byte[in.readInt()];
-        in.read(b);
-        person.address = new String(b);
+            for (Field field : this.schema.fields) {
+                if (field.fieldType.equalsIgnoreCase("String")) {
+                    int fieldLength = in.readInt();
+                    byte[] b = new byte[fieldLength];
+                    in.read(b);
+                    String value = new String(b);
+                    //set the value into result object
+                    result.getClass().getDeclaredField(field.fieldName).set(result, value);
+
+                } else if (field.fieldType.equalsIgnoreCase("int")) {
+                    int value = in.readInt();
+                    //set the value into result object
+                    result.getClass().getDeclaredField(field.fieldName).set(result, value);
+
+                }
+
+                //TODO implements other fields type
+            }
 
 
-        b = new byte[in.readInt()];
-        in.read(b);
-        person.carPlateNumber = new String(b);
+        } catch (InstantiationException | ClassNotFoundException | IllegalAccessException |NoSuchFieldException e) {
+            throw new IOException(e.getMessage());
+        }
 
 
-        b = new byte[in.readInt()];
-        in.read(b);
-        person.description = new String(b);
-
-        return person;
-
+        return result;
     }
 
 
@@ -164,7 +188,7 @@ public class BaseFileHandler {
         this.dbFile.close();
     }
 
-    public List<DebugRowInfo> loadAllDataFromFile() throws IOException {
+    public List<DebugRowInfo> loadAllDataFromFile(final Class zclass) throws IOException {
         writeLock.lock();
         try {
             if (this.dbFile.length() == 0) {
@@ -192,8 +216,8 @@ public class BaseFileHandler {
                     byte[] b = new byte[recordLength];
                     this.dbFile.read(b);
 
-                    Person person = readFromByteStream(new DataInputStream(new ByteArrayInputStream(b)));
-                    result.add(new DebugRowInfo(person, isDeleted, isTemporary));
+                    Object object = readFromByteStream(new DataInputStream(new ByteArrayInputStream(b)), zclass);
+                    result.add(new DebugRowInfo(object, isDeleted, isTemporary));
                     currentPosition += recordLength;
                 }
             }
@@ -235,18 +259,22 @@ public class BaseFileHandler {
 
                 // re-read the record
                 byte[] b = this.readRowRecord(position);
-                Person person = this.readFromByteStream(new DataInputStream(new ByteArrayInputStream(b)));
+                Object object = this.readFromByteStream(new DataInputStream(new ByteArrayInputStream(b)), this.zclass);
                 //add it to the index
-                Index.getInstance().addNameToIndex(person.name, Index.getInstance().getTotalNumberOfRows());
-                Index.getInstance().add(position);
+                String _name = (String) object.getClass().getDeclaredField(this.schema.indexBy).get(object);
+
+                GenericIndex.getInstance().addNameToIndex(_name, Index.getInstance().getTotalNumberOfRows());
+                GenericIndex.getInstance().add(position);
 
 
             }
             for (Long position : deletedRows) {
                 dbFile.seek(position);
                 this.dbFile.writeBoolean(false);
-                Index.getInstance().removeByFilePosition(position);
+                GenericIndex.getInstance().removeByFilePosition(position);
             }
+        } catch (IllegalAccessException | NoSuchFieldException e) {
+            throw new IOException(e.getMessage());
         } finally {
             writeLock.unlock();
         }
@@ -264,7 +292,7 @@ public class BaseFileHandler {
                 this.dbFile.seek(position + 1);
                 this.dbFile.writeBoolean(true);
 
-                Index.getInstance().removeByFilePosition(position);
+                GenericIndex.getInstance().removeByFilePosition(position);
 
             }
 
@@ -275,12 +303,15 @@ public class BaseFileHandler {
                 this.dbFile.writeBoolean(false);
 
                 byte[] b = this.readRowRecord(position);
-                Person person = this.readFromByteStream(new DataInputStream(new ByteArrayInputStream(b)));
+                Object object = this.readFromByteStream(new DataInputStream(new ByteArrayInputStream(b)), this.zclass);
                 //add it to the index
-                Index.getInstance().addNameToIndex(person.name, Index.getInstance().getTotalNumberOfRows());
-                Index.getInstance().add(position);
+                String _name = (String) object.getClass().getDeclaredField(this.schema.indexBy).get(object);
+                GenericIndex.getInstance().addNameToIndex(_name, Index.getInstance().getTotalNumberOfRows());
+                GenericIndex.getInstance().add(position);
 
             }
+        } catch (IllegalAccessException | NoSuchFieldException e) {
+            throw new IOException(e.getMessage());
         } finally {
             writeLock.unlock();
 
@@ -310,4 +341,5 @@ public class BaseFileHandler {
             readLock.unlock();
         }
     }
+
 }

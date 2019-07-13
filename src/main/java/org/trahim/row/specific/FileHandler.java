@@ -1,6 +1,7 @@
-package org.trahim.row;
+package org.trahim.row.specific;
 
 import org.trahim.exceptions.DuplicateNameException;
+import org.trahim.row.Person;
 import org.trahim.util.Leveinshtein;
 import org.trahim.util.OperationUnit;
 

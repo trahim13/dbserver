@@ -1,9 +1,14 @@
 package org.trahim.dbserver;
 
+import com.google.gson.Gson;
+import org.trahim.exceptions.DBException;
 import org.trahim.exceptions.DuplicateNameException;
-import org.trahim.row.specific.FileHandler;
-import org.trahim.row.specific.Index;
 import org.trahim.row.Person;
+import org.trahim.row.general.Field;
+import org.trahim.row.general.GenericFileHandler;
+import org.trahim.row.general.GenericIndex;
+import org.trahim.row.general.Schema;
+import org.trahim.row.specific.FileHandler;
 import org.trahim.transaction.ITransaction;
 import org.trahim.transaction.Transaction;
 import org.trahim.util.DebugRowInfo;
@@ -23,9 +28,9 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public final class DBServer implements DB {
+public final class DBGenericServer implements DBGeneric {
 
-    private FileHandler fileHandler;
+    private GenericFileHandler fileHandler;
 
     private Map<Long, ITransaction> transactions;
 
@@ -33,14 +38,41 @@ public final class DBServer implements DB {
     private final static String LOG_FILE_NAME = "config.properties";
     private final static String LOG_LEVEL = "LOG_LEVEL";
 
-    public DBServer(final String dbFileName) throws IOException {
-        this.fileHandler = new FileHandler(dbFileName);
+    private Schema schema;
+    private Class zclass;
+
+    public DBGenericServer(final String dbFileName,
+                           final String schema,
+                           final Class zclass) throws IOException, DBException {
+
+        this.schema = this.readSchema(schema);
+        this.zclass = zclass;
+
+
+        this.fileHandler = new GenericFileHandler(dbFileName);
+        this.fileHandler.setSchema(this.schema);
+        this.fileHandler.setZClass(this.zclass);
+
+
         this.transactions = new LinkedHashMap<>();
         this.initialise();
     }
 
+    private Schema readSchema(final String schema) {
+        Gson gson = new Gson();
+        Schema tmpSchema = gson.fromJson(schema, Schema.class);
 
-    private void initialise() throws IOException {
+        for (Field field : tmpSchema.fields) {
+            LOGGER.info(field.toString());
+
+        }
+
+        return tmpSchema;
+    }
+
+
+    private void initialise() throws IOException, DBException {
+        GenericIndex.getInstance().initialize(this.schema);
 
         this.fileHandler.initialise();
 
@@ -64,29 +96,25 @@ public final class DBServer implements DB {
         }
 
 
-        this.fileHandler.loadAllDataToIndex();
+        this.fileHandler.loadAllDataToIndex(this.zclass);
 
     }
 
     @Override
     public void close() throws IOException {
         LOGGER.info("[" + this.getClass().getName() + "]" + " Closing DB server");
-        Index.getInstance().clear();
+        GenericIndex.getInstance().clear();
         this.fileHandler.close();
 
     }
 
 
     @Override
-    public void add(Person person) throws IOException, DuplicateNameException {
-        logInfoPerson(person);
+    public void add(Object object) throws IOException, DuplicateNameException, DBException {
+        logInfoObject(object);
 
         OperationUnit ou = this.fileHandler.add(
-                person.name,
-                person.age,
-                person.address,
-                person.carPlateNumber,
-                person.description);
+                object);
 
         this.getTransaction().registerAdd(ou.addedRowPosition);
 
@@ -106,93 +134,91 @@ public final class DBServer implements DB {
     }
 
     @Override
-    public Person read(long rowNumber) throws IOException {
+    public Object read(long rowNumber) throws IOException {
         LOGGER.info("[" + this.getClass().getName() + "]. " + "Reading row. Row number: " + rowNumber);
-        Person person = this.fileHandler.readRow(rowNumber);
+        Object object = this.fileHandler.readRow(rowNumber);
 
-        logInfoPerson(person);
-        return person;
+        logInfoObject(object);
+        return object;
     }
 
     @Override
-    public void update(long rowNumber, final Person person) throws IOException, DuplicateNameException {
-        LOGGER.info("[" + this.getClass().getName() + "]. " + "Updating person. Row number: " + rowNumber + ". Person " + person);
-        OperationUnit ou = this.fileHandler.updateRow(rowNumber,
-                person.name, person.age, person.address, person.carPlateNumber, person.description);
+    public void update(long rowNumber, final Object object) throws IOException, DuplicateNameException, DBException, NoSuchFieldException, IllegalAccessException {
+        LOGGER.info("[" + this.getClass().getName() + "]. " + "Updating object. Row number: " + rowNumber + ". Object " + object);
+        OperationUnit ou = this.fileHandler.updateRow(rowNumber, object);
         ITransaction transaction = this.getTransaction();
         transaction.registerDelete(ou.deletedRowPosition);
         transaction.registerAdd(ou.addedRowPosition);
     }
 
     @Override
-    public void update(String name, Person person) throws IOException, DuplicateNameException {
-        LOGGER.info("Updating person. Name: " + name + ". Person " + person);
-        OperationUnit ou = this.fileHandler.update(name,
-                person.name, person.age, person.address, person.carPlateNumber, person.description);
+    public void update(String indexedFieldName, Object object) throws IOException, DuplicateNameException, DBException, NoSuchFieldException, IllegalAccessException {
+        LOGGER.info("Updating person. Name: " + indexedFieldName + ". Object " + object);
+        OperationUnit ou = this.fileHandler.update(indexedFieldName, object);
         ITransaction transaction = this.getTransaction();
         transaction.registerDelete(ou.deletedRowPosition);
         transaction.registerAdd(ou.addedRowPosition);
     }
 
     @Override
-    public Person search(String name) throws IOException {
-        LOGGER.info("Searching person: " + name);
-        Person person = this.fileHandler.search(name);
-        this.logInfoPerson(person);
-        return person;
+    public Object search(String indexedFieldName) throws IOException {
+        LOGGER.info("Searching person: " + indexedFieldName);
+        Object object = this.fileHandler.search(indexedFieldName);
+        this.logInfoObject(object);
+        return object;
     }
 
     @Override
     public List<DebugRowInfo> listAllRowsWithDebug() throws IOException {
-        return this.fileHandler.loadAllDataFromFile();
+        return this.fileHandler.loadAllDataFromFile(this.zclass);
     }
 
     @Override
-    public List<Person> searchWithLeveinshtein(String name, int tolerance) throws IOException {
-        LOGGER.info("[" + this.getClass().getName() + "]. " +"Searching with Levenshtein. Name: " + name + ". tolerance: " + tolerance);
+    public List<Object> searchWithLeveinshtein(String indexedFieldName, int tolerance) throws IOException {
+        LOGGER.info("[" + this.getClass().getName() + "]. " + "Searching with Levenshtein. Name: " + indexedFieldName + ". tolerance: " + tolerance);
 
-        List<Person> persons = this.fileHandler.searchWithLeveinshtein(name, tolerance);
+        List<Object> result = this.fileHandler.searchWithLeveinshtein(indexedFieldName, tolerance);
 
-        this.logInfoListPerson(persons);
+        this.logInfoListObject(result);
 
-        return persons;
+        return result;
     }
 
     @Override
-    public List<Person> searchWithRegexp(String regexp) throws IOException {
-        LOGGER.info("[" + this.getClass().getName() + "]. " +"Searching with Regex. Regex: " + regexp);
-        List<Person> persons = this.fileHandler.searchWithRegex(regexp);
-        this.logInfoListPerson(persons);
+    public List<Object> searchWithRegexp(String regexp) throws IOException {
+        LOGGER.info("[" + this.getClass().getName() + "]. " + "Searching with Regex. Regex: " + regexp);
+        List<Object> result = this.fileHandler.searchWithRegex(regexp);
+        this.logInfoListObject(result);
 
-        return persons;
+        return result;
     }
 
-    public void defragmentDatabase() throws IOException, DuplicateNameException {
-        LOGGER.info("[" + this.getClass().getName() + "]. "+ "Defragmenting Database");
+    public void defragmentDatabase() throws IOException, DuplicateNameException, DBException {
+        LOGGER.info("[" + this.getClass().getName() + "]. " + "Defragmenting Database");
 
         //создали временный файл
         File tmpFile = File.createTempFile("defrag", "dat");
-        Index.getInstance().clear();
+        GenericIndex.getInstance().clear();
 
         //открыли временный файл и записали туда неудалённые значения из базы данных
-        FileHandler defragFileHandler = new FileHandler(new RandomAccessFile(tmpFile, "rw"), tmpFile.getName());
-        List<DebugRowInfo> debugRowInfos = this.fileHandler.loadAllDataFromFile();
+        GenericFileHandler defragFileHandler = new GenericFileHandler(new RandomAccessFile(tmpFile, "rw"), tmpFile.getName());
+        List<DebugRowInfo> debugRowInfos = this.fileHandler.loadAllDataFromFile(this.zclass);
         for (DebugRowInfo dri : debugRowInfos) {
             if (dri.isDeleted() || dri.isTemporary()) {
                 continue;
 
             }
-            Person p = (Person) dri.getObject() ;
+            Object object =  dri.getObject();
 
-            defragFileHandler.add(p.name, p.age, p.address, p.carPlateNumber, p.description);
+            defragFileHandler.add(object);
         }
         //удалили старый файл DB
         boolean wasDeleted = this.fileHandler.deleteFile();
         if (!wasDeleted) {
             tmpFile.delete();
-            LOGGER.severe("[" + this.getClass().getName() + "]. "+"Database file cannot be deleted during the defragmentation");
+            LOGGER.severe("[" + this.getClass().getName() + "]. " + "Database file cannot be deleted during the defragmentation");
             this.initialise();
-            throw new IOException("[" + this.getClass().getName() + "]. "+"DB cannot be deleted. Check the logs.");
+            throw new IOException("[" + this.getClass().getName() + "]. " + "DB cannot be deleted. Check the logs.");
         }
         this.fileHandler.close();
         String oldDataBaseName = this.fileHandler.getDBName();
@@ -202,11 +228,11 @@ public final class DBServer implements DB {
         //закрыли временный файл
         defragFileHandler.close();
         // подсунули текущему filehandlery новый файл
-        this.fileHandler = new FileHandler(oldDataBaseName);
-        Index.getInstance().clear();
+        this.fileHandler = new GenericFileHandler(oldDataBaseName);
+        GenericIndex.getInstance().clear();
         //переинициализировали index
         this.initialise();
-        LOGGER.info("[" + this.getClass().getName() + "]. "+ "Database file has been defragmented");
+        LOGGER.info("[" + this.getClass().getName() + "]. " + "Database file has been defragmented");
     }
 
     private ITransaction getTransaction() {
@@ -257,28 +283,30 @@ public final class DBServer implements DB {
         this.transactions.remove(Thread.currentThread().getId());
         this.transactions.clear();
 
-        LOGGER.info("[" + this.getClass().getName() + "]. " + " Rollback DONE. (" + transaction.getUid()+" )");
+        LOGGER.info("[" + this.getClass().getName() + "]. " + " Rollback DONE. (" + transaction.getUid() + " )");
     }
 
     @Override
     public long getTotalRecordNumber() {
-        return Index.getInstance().getTotalNumberOfRows();
+        return GenericIndex.getInstance().getTotalNumberOfRows();
     }
 
 
-    private void logInfoPerson(final Person person) {
-        LOGGER.info("[" + this.getClass().getName() + "]. " + "Read person: " + person);
+    private void logInfoObject(final Object object) {
+        LOGGER.info("[" + this.getClass().getName() + "]. " + "Read object: " + object);
     }
-    private void logInfoListPerson(final List<Person> persons) {
+
+    private void logInfoListObject(final List<Object> objects) {
 
         StringBuilder sb = new StringBuilder(300);
 
-        for (Person person : persons){
-            sb.append(person.toString());
+        for (Object object : objects) {
+            sb.append(object.toString());
             sb.append(System.getProperty("line.separator"));
         }
 
         LOGGER.info("[" + this.getClass().getName() + "]. " + "Read persons: " + sb);
 
     }
+
 }

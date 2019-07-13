@@ -3,7 +3,7 @@ package test;
 import org.trahim.dbserver.DB;
 import org.trahim.dbserver.DBServer;
 import org.trahim.exceptions.DuplicateNameException;
-import org.trahim.row.Index;
+import org.trahim.row.specific.Index;
 import org.trahim.row.Person;
 import org.trahim.transaction.ITransaction;
 import org.trahim.util.DebugRowInfo;
@@ -103,7 +103,7 @@ class Test {
     }
 
     private void prittyPrintRow(DebugRowInfo dri) {
-        Person person = dri.getPerson();
+        Person person = (Person) dri.getObject();
         boolean isTemporary = dri.isTemporary();
         boolean isDeleted = dri.isDeleted();
 

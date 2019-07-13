@@ -2,9 +2,10 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.trahim.dbserver.DB;
+import org.trahim.dbserver.DBFactory;
 import org.trahim.dbserver.DBServer;
 import org.trahim.exceptions.DuplicateNameException;
-import org.trahim.row.Index;
+import org.trahim.row.specific.Index;
 import org.trahim.row.Person;
 import org.trahim.util.DebugRowInfo;
 
@@ -26,7 +27,7 @@ public class DBBasicTests {
 
     @Test
     public void testAdd() throws DuplicateNameException {
-        try (DB db = new DBServer(dbFileName)) {
+        try (DB db = DBFactory.getSpecificDB(dbFileName)) {
             Person p0 = new Person("1kmnmn", 3, "3", "4", "5");
             db.beginTransaction();
             db.add(p0);
@@ -41,7 +42,7 @@ public class DBBasicTests {
 
     @Test
     public void testRead() throws DuplicateNameException {
-        try (DB db = new DBServer(dbFileName)) {
+        try (DB db = DBFactory.getSpecificDB(dbFileName)) {
 
             Person p0 = new Person("1kmnmn", 3, "3", "4", "5");
             db.beginTransaction();
@@ -62,7 +63,7 @@ public class DBBasicTests {
 
     @Test
     public void testDelete() throws DuplicateNameException {
-        try (DB db = new DBServer(dbFileName)) {
+        try (DB db = DBFactory.getSpecificDB(dbFileName)) {
             Person p0 = new Person("1kmnmn", 3, "4", "5", "6");
             db.beginTransaction();
             db.add(p0);
@@ -83,7 +84,7 @@ public class DBBasicTests {
 
     @Test
     public void updateByName() throws DuplicateNameException {
-        try (DB db = new DBServer(dbFileName)) {
+        try (DB db = DBFactory.getSpecificDB(dbFileName)) {
             Person p0 = new Person("Test 0", 3, "4", "5", "6");
 
             db.beginTransaction();
@@ -96,8 +97,10 @@ public class DBBasicTests {
             db.update("Test 0", p1);
             db.commit();
 
-            Person result = db.read(0);
+            Person result = db.read(1);
+            System.out.println(result.name);
             Assert.assertEquals("Test 1", result.name);
+
         } catch (IOException e) {
             Assert.fail();
         }
@@ -105,7 +108,7 @@ public class DBBasicTests {
 
     @Test
     public void updateByRowNumber() throws DuplicateNameException {
-        try (DB db = new DBServer(dbFileName)) {
+        try (DB db = DBFactory.getSpecificDB(dbFileName)) {
             Person p0 = new Person("Test 0", 3, "4", "5", "6");
 
             db.beginTransaction();
@@ -118,7 +121,7 @@ public class DBBasicTests {
             db.update(0, p1);
             db.commit();
 
-            Person result = db.read(0);
+            Person result = db.read(1 );
             Assert.assertEquals("Test 1", result.name);
         } catch (IOException e) {
             Assert.fail();
@@ -127,7 +130,7 @@ public class DBBasicTests {
 
     @Test
     public void teatSearch() throws DuplicateNameException {
-        try (DB db = new DBServer(dbFileName)) {
+        try (DB db = DBFactory.getSpecificDB(dbFileName)) {
             Person p0 = new Person("Test 0", 3, "4", "5", "6");
             Person p1 = new Person("Test 1", 55, "4", "5", "6");
             db.beginTransaction();
@@ -148,7 +151,7 @@ public class DBBasicTests {
 
     @Test
     public void teatSearchWithLeveishtein() throws DuplicateNameException {
-        try (DB db = new DBServer(dbFileName)) {
+        try (DB db = DBFactory.getSpecificDB(dbFileName)) {
             Person p0 = new Person("Test 0", 3, "4", "5", "6");
             Person p1 = new Person("Test 1", 55, "4", "5", "6");
 
@@ -170,7 +173,7 @@ public class DBBasicTests {
 
     @Test
     public void teatSearchWith_tolerance_1_Leveishtein() throws DuplicateNameException {
-        try (DB db = new DBServer(dbFileName)) {
+        try (DB db = DBFactory.getSpecificDB(dbFileName)) {
             Person p0 = new Person("Test 0", 3, "4", "5", "6");
             Person p1 = new Person("Test 1", 55, "4", "5", "6");
 
@@ -190,7 +193,7 @@ public class DBBasicTests {
 
     @Test
     public void testWithRegexp() throws DuplicateNameException {
-        try (DB db = new DBServer(dbFileName)) {
+        try (DB db = DBFactory.getSpecificDB(dbFileName)) {
             Person p0 = new Person("Test 0", 3, "4", "5", "6");
             Person p1 = new Person("Test 1", 55, "4", "5", "6");
 
@@ -211,7 +214,7 @@ public class DBBasicTests {
 
     @Test
     public void transactionTest_COMMIT() throws DuplicateNameException {
-        try (DB db = new DBServer(dbFileName)) {
+        try (DB db = DBFactory.getSpecificDB(dbFileName)) {
             Person p0 = new Person("Test 0", 3, "4", "5", "6");
 
             db.beginTransaction();
@@ -233,7 +236,7 @@ public class DBBasicTests {
 
     @Test
     public void transactionTest_ROLLBACK() throws DuplicateNameException {
-        try (DB db = new DBServer(dbFileName)) {
+        try (DB db = DBFactory.getSpecificDB(dbFileName)) {
             Person p0 = new Person("Test 0", 3, "4", "5", "6");
 
             db.beginTransaction();
@@ -259,7 +262,7 @@ public class DBBasicTests {
 
     @Test
     public void transactionTest_COMMIT_with_multiple_begin() throws DuplicateNameException {
-        try (DB db = new DBServer(dbFileName)) {
+        try (DB db = DBFactory.getSpecificDB(dbFileName)) {
             Person p0 = new Person("Test 0", 3, "4", "5", "6");
 
             db.beginTransaction();
@@ -281,7 +284,7 @@ public class DBBasicTests {
 
     @Test
     public void transactionTest_ROLLBACk_with_multiple_begin() throws DuplicateNameException {
-        try (DB db = new DBServer(dbFileName)) {
+        try (DB db = DBFactory.getSpecificDB(dbFileName)) {
             Person p0 = new Person("Test 0", 3, "4", "5", "6");
             Person p2 = new Person("Test 0", 3, "4", "5", "6");
 

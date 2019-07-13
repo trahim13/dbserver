@@ -1,4 +1,4 @@
-package org.trahim.row;
+package org.trahim.row.specific;
 
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
